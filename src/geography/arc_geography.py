@@ -38,7 +38,17 @@ _FIELDS = [
     "Region", "RCODE",
     "Division", "DCODE",
     "FEMA_Region",
-    "Pop_2023", "Med_HH_Inc_2023",
+    # Chapter HQ contact (carried on every county row)
+    "Address", "Address_2", "City", "Zip", "Phone", "Time_Zone",
+    # Area
+    "SQ_MI",
+    # Demographics
+    "Pop_2023", "Pop_Den_2023", "Total_HH_2023", "Avg_HH_Size_2023",
+    "Median_Age_2023", "Med_HH_Inc_2023", "Med_Home_Val_2023",
+    "Youth_0_14_Pop_2023", "Yng_Adult_15_24_Pop_2023",
+    "Adult_25_64_Pop_2023", "Seniors_65_up_Pop_2023",
+    "Owner_2023", "Renter_2023", "Vacant_2023",
+    "Diversity_Index_2023",
 ]
 
 

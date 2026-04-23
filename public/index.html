@@ -6,93 +6,258 @@
 <title>Red Cross Donor Briefing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root {
-    --bg: #0b0d10;
-    --panel: #141821;
-    --line: #222733;
-    --text: #e7ecf3;
-    --muted: #8a95a8;
-    --accent: #ee1e2b;
-    --warn: #ffb547;
+    --bg: #ffffff;
+    --panel: #f7f8fa;
+    --panel-2: #eef1f5;
+    --line: #d9dde4;
+    --text: #111827;
+    --text-2: #374151;
+    --muted: #6b7280;
+    --accent: #d81e2b;
+    --accent-dark: #a7161f;
+    --warn: #d97706;
+    --good: #15803d;
+    --fire: #ea580c;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 15px; line-height: 1.55; }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
-  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
-  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); font-size: 13px; }
-  .accent { color: var(--accent); }
-  form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 20px 0 28px; }
-  label { color: var(--muted); font-size: 13px; margin-right: 4px; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 16px; line-height: 1.55; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header.site {
+    border-bottom: 2px solid var(--line);
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px;
+    background: #fff;
+  }
+  header.site .dot { width: 16px; height: 16px; background: var(--accent); border-radius: 50%; }
+  header.site h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+  header.site .sub { color: var(--muted); font-size: 14px; margin-left: auto; }
+  .bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .bar label { color: var(--text-2); font-size: 14px; font-weight: 600; }
   select, button {
-    background: var(--panel); color: var(--text); border: 1px solid var(--line);
-    padding: 10px 14px; border-radius: 6px; font-size: 14px; font-family: inherit;
+    background: #fff; color: var(--text); border: 1.5px solid var(--line);
+    padding: 9px 14px; border-radius: 6px; font-size: 15px; font-family: inherit; font-weight: 500;
   }
-  select { min-width: 200px; }
-  button { background: var(--accent); color: white; border: 1px solid var(--accent); cursor: pointer; font-weight: 600; }
-  button:hover { filter: brightness(1.1); }
-  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
-  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
-  .card.span-4 { grid-column: span 4; }
-  .card.span-6 { grid-column: span 6; }
-  .card.span-8 { grid-column: span 8; }
-  .card.span-12 { grid-column: span 12; }
-  @media (max-width: 800px) {
-    .card.span-4, .card.span-6, .card.span-8 { grid-column: span 12; }
+  select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  select { min-width: 180px; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; cursor: pointer; }
+  button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  button.ghost { background: #fff; color: var(--text); cursor: pointer; font-weight: 600; }
+  button.ghost:hover { background: var(--panel-2); }
+  main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; min-height: calc(100vh - 120px); }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } #map { height: 60vh !important; } }
+  #map { height: calc(100vh - 120px); background: #e6eaf0; }
+  .leaflet-container { font-family: 'Inter', sans-serif; }
+  aside {
+    padding: 20px 24px 40px; overflow-y: auto; max-height: calc(100vh - 120px);
+    border-left: 1px solid var(--line); background: #fff;
   }
-  .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-  .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  @media (max-width: 1000px) { aside { max-height: none; border-left: none; border-top: 1px solid var(--line); } }
+  .head {
+    margin-bottom: 16px;
+  }
+  .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+  .title { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.15; }
+  .sub2 { color: var(--text-2); font-size: 15px; margin-top: 2px; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 16px 0 20px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+  }
+  .stat .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; }
+  .stat .value { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; color: var(--text); margin-top: 2px; }
+  .stat .hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat.warn .value { color: var(--fire); }
+  .stat.alert .value { color: var(--accent); }
+  .section { margin-top: 22px; }
+  .section h3 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
   .item { padding: 10px 0; border-top: 1px solid var(--line); }
   .item:first-child { border-top: none; padding-top: 4px; }
-  .item .name { font-weight: 600; }
-  .item .meta { color: var(--muted); font-size: 13px; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #20242f; color: var(--muted); margin-right: 6px; }
-  .pill.warn { background: rgba(255,181,71,0.15); color: var(--warn); }
-  .pill.danger { background: rgba(238,30,43,0.15); color: var(--accent); }
-  pre { background: #0a0c10; border: 1px solid var(--line); padding: 10px; border-radius: 6px; overflow: auto; font-size: 12px; color: var(--muted); }
-  .empty { color: var(--muted); font-style: italic; font-size: 13px; padding: 8px 0; }
-  footer { margin-top: 48px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
-  .spin { color: var(--muted); font-size: 13px; }
+  .item .name { font-weight: 700; font-size: 15px; }
+  .item .meta { color: var(--text-2); font-size: 14px; margin-top: 2px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: var(--panel-2); color: var(--text-2); margin-right: 4px; }
+  .pill.warn { background: #fef3c7; color: #92400e; }
+  .pill.danger { background: #fee2e2; color: #991b1b; }
+  .pill.fire { background: #ffedd5; color: #9a3412; }
+  .empty { color: var(--muted); font-style: italic; font-size: 14px; padding: 6px 0; }
+  .talking {
+    background: #fffdf5; border: 1px solid #fde68a; border-left: 4px solid var(--accent);
+    padding: 14px 16px; border-radius: 6px; margin: 16px 0 22px; font-size: 15px; color: var(--text);
+  }
+  .hq {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 8px;
+    font-size: 14px; color: var(--text-2);
+  }
+  .hq .label { font-weight: 700; color: var(--text); }
+  .legend {
+    position: absolute; bottom: 16px; left: 16px; z-index: 500;
+    background: rgba(255,255,255,0.96); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 12px; font-size: 13px; color: var(--text-2); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .legend .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); }
+  .status { padding: 6px 24px; background: #fffbeb; color: #92400e; font-size: 13px; border-bottom: 1px solid #fde68a; }
+  .status:empty { display: none; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1><span class="accent">●</span> Red Cross Donor Briefing</h1>
-    <div class="sub">Situational awareness for gift officers · any US county → chapter → region → division</div>
-  </header>
+<header class="site">
+  <div class="dot"></div>
+  <h1>Red Cross Donor Briefing</h1>
+  <div class="sub">Situational awareness for gift officers · county → chapter → region → division</div>
+</header>
 
-  <form id="f">
-    <label for="state">State:</label>
-    <select id="state"></select>
-    <label for="county">County:</label>
-    <select id="county"></select>
-    <button type="submit">Brief County</button>
-    <button type="button" class="ghost" id="chapterBtn">Chapter view</button>
-    <button type="button" class="ghost" id="regionBtn">Region view</button>
-  </form>
+<div class="bar">
+  <label for="state">State</label>
+  <select id="state"></select>
+  <label for="county">County</label>
+  <select id="county"></select>
+  <button type="button" class="primary" id="countyBtn">Brief this county</button>
+  <button type="button" class="ghost" id="chapterBtn">Chapter view</button>
+  <button type="button" class="ghost" id="regionBtn">Region view</button>
+</div>
 
-  <div id="status" class="spin"></div>
-  <div id="out"></div>
+<div class="status" id="status"></div>
+
+<main>
+  <div id="map"></div>
+  <aside id="panel"></aside>
+</main>
+
+<div class="legend" id="legend">
+  <div class="row"><span class="sw" style="background:#fed7aa;border-color:#ea580c;"></span> FEMA-declared county</div>
+  <div class="row"><span class="sw" style="background:#fef08a;border-color:#ca8a04;"></span> NWS active alert</div>
+  <div class="row"><span class="sw" style="background:#ea580c;border-radius:50%;"></span> Active wildfire</div>
+  <div class="row"><span class="sw" style="background:transparent;border:2px solid #d81e2b;"></span> Selected boundary</div>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const out = $('out');
 const status = $('status');
+const panel = $('panel');
 
-let INDEX = null;   // {states, divisions, regions, chapters, county_count}
-let COUNTIES_CACHE = {}; // state -> [{fips, county, state, chapter, region, division}]
-let CURRENT_COUNTY = null;
+// ---- MAP ----
+const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.5, -98.5], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap, &copy; CARTO',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+const ARC_SERVICE = 'https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Master_ARC_Geography_2022/FeatureServer';
+
+// Layer groups
+let selectedBoundaryLayer = null;
+let chapterBoundariesLayer = null;
+let femaLayer = null;
+let alertsLayer = null;
+let fireLayer = null;
+
+function clearOverlays() {
+  [selectedBoundaryLayer, chapterBoundariesLayer, femaLayer, alertsLayer, fireLayer].forEach(l => {
+    if (l) map.removeLayer(l);
+  });
+  selectedBoundaryLayer = chapterBoundariesLayer = femaLayer = alertsLayer = fireLayer = null;
+}
+
+async function fetchGeoJSON(layer, where, outFields = 'FIPS,County,State,Chapter,Region,Division') {
+  const qs = new URLSearchParams({
+    where, outFields, returnGeometry: 'true', outSR: '4326', f: 'geojson',
+  });
+  const r = await fetch(`${ARC_SERVICE}/${layer}/query?${qs}`);
+  return r.json();
+}
+
+function boundaryStyle(color, weight=2.5, fillOpacity=0) {
+  return { color, weight, fillOpacity, fillColor: color };
+}
+
+async function drawCountyBoundary(fips) {
+  const gj = await fetchGeoJSON(5, `FIPS='${fips}'`);
+  selectedBoundaryLayer = L.geoJSON(gj, { style: boundaryStyle('#d81e2b', 3, 0.05) }).addTo(map);
+  if (selectedBoundaryLayer.getBounds().isValid()) map.fitBounds(selectedBoundaryLayer.getBounds(), { padding: [40, 40] });
+}
+
+async function drawChapterBoundary(chapter) {
+  const gj = await fetchGeoJSON(3, `Chapter='${chapter.replace(/'/g, "''")}'`, 'Chapter,Region,Division');
+  selectedBoundaryLayer = L.geoJSON(gj, { style: boundaryStyle('#d81e2b', 3, 0.04) }).addTo(map);
+  if (selectedBoundaryLayer.getBounds().isValid()) map.fitBounds(selectedBoundaryLayer.getBounds(), { padding: [30, 30] });
+}
+
+async function drawRegionBoundary(region) {
+  const gj = await fetchGeoJSON(2, `Region='${region.replace(/'/g, "''")}'`, 'Region,Division');
+  selectedBoundaryLayer = L.geoJSON(gj, { style: boundaryStyle('#d81e2b', 3, 0.04) }).addTo(map);
+  if (selectedBoundaryLayer.getBounds().isValid()) map.fitBounds(selectedBoundaryLayer.getBounds(), { padding: [20, 20] });
+}
+
+async function drawChaptersInRegion(region) {
+  const gj = await fetchGeoJSON(3, `Region='${region.replace(/'/g, "''")}'`, 'Chapter,Region');
+  chapterBoundariesLayer = L.geoJSON(gj, {
+    style: { color: '#6b7280', weight: 1.2, fillOpacity: 0.04, fillColor: '#6b7280' },
+    onEachFeature: (f, layer) => {
+      layer.bindTooltip(f.properties.Chapter, { sticky: true });
+      layer.on('click', () => brief('chapter=' + encodeURIComponent(f.properties.Chapter)));
+    }
+  }).addTo(map);
+}
+
+async function drawFemaCounties(fipsList) {
+  if (!fipsList.length) return;
+  const clauses = fipsList.map(f => `'${f}'`).join(',');
+  const gj = await fetchGeoJSON(5, `FIPS IN (${clauses})`, 'FIPS,County,State');
+  femaLayer = L.geoJSON(gj, {
+    style: { color: '#ea580c', weight: 1, fillColor: '#fed7aa', fillOpacity: 0.55 },
+    onEachFeature: (f, layer) => {
+      layer.bindTooltip(`${f.properties.County}, ${f.properties.State} — FEMA-declared`, { sticky: true });
+    }
+  }).addTo(map);
+}
+
+function drawAlerts(alerts) {
+  const feats = alerts.filter(a => a.geometry).map(a => ({
+    type: 'Feature',
+    properties: { event: a.event, severity: a.severity, area: a.area_desc, headline: a.headline },
+    geometry: a.geometry,
+  }));
+  if (!feats.length) return;
+  alertsLayer = L.geoJSON({ type: 'FeatureCollection', features: feats }, {
+    style: { color: '#ca8a04', weight: 1, fillColor: '#fef08a', fillOpacity: 0.45 },
+    onEachFeature: (f, layer) => layer.bindTooltip(`${f.properties.event} — ${(f.properties.area||'').slice(0,80)}`, { sticky: true })
+  }).addTo(map);
+}
+
+function drawFires(fires) {
+  const pts = fires.filter(f => f.lat && f.lon);
+  if (!pts.length) return;
+  fireLayer = L.layerGroup();
+  pts.forEach(f => {
+    const acres = parseFloat(f.acres) || 0;
+    const radius = Math.max(5, Math.min(20, Math.sqrt(acres) / 4));
+    const contained = f.contained_pct;
+    const color = contained >= 100 ? '#6b7280' : contained >= 75 ? '#ca8a04' : '#ea580c';
+    const m = L.circleMarker([f.lat, f.lon], {
+      radius, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85
+    });
+    m.bindPopup(`<b>${f.name||'Fire'}</b><br>${f.county||''}, ${(f.state||'').replace('US-','')}<br>${acres.toLocaleString()} acres · ${contained != null ? contained+'% contained' : 'containment unknown'}<br>${f.cause||''}`);
+    m.addTo(fireLayer);
+  });
+  fireLayer.addTo(map);
+}
+
+// ---- DATA LOAD ----
+let COUNTIES_CACHE = {};
 
 async function loadIndex() {
   const r = await fetch('/api/geography');
-  INDEX = await r.json();
+  const idx = await r.json();
   const sel = $('state');
-  INDEX.states.forEach(s => {
+  idx.states.forEach(s => {
     const o = document.createElement('option');
     o.value = s; o.textContent = s;
     sel.appendChild(o);
@@ -116,194 +281,254 @@ async function loadCounties(state) {
     o.dataset.region = c.region || '';
     sel.appendChild(o);
   });
-  // Default: Putnam if FL, else first county
   if (state === 'FL') {
-    const putnam = COUNTIES_CACHE[state].find(c => c.county === 'Putnam');
-    if (putnam) sel.value = putnam.fips;
+    const p = COUNTIES_CACHE[state].find(c => c.county === 'Putnam');
+    if (p) sel.value = p.fips;
   }
-  CURRENT_COUNTY = selectedCounty();
 }
 
 function selectedCounty() {
   const sel = $('county');
   const opt = sel.options[sel.selectedIndex];
   if (!opt) return null;
-  return {
-    fips: opt.value,
-    county: opt.textContent,
-    chapter: opt.dataset.chapter,
-    region: opt.dataset.region,
-    state: $('state').value,
-  };
+  return { fips: opt.value, county: opt.textContent, chapter: opt.dataset.chapter, region: opt.dataset.region, state: $('state').value };
 }
 
-function card(title, inner, cls = 'span-6') {
-  return `<div class="card ${cls}"><div class="kicker">${title}</div>${inner}</div>`;
+// ---- RENDERERS ----
+const fmt = (n) => n == null ? '—' : Number(n).toLocaleString();
+const fmtMoney = (n) => n == null ? '—' : '$' + Number(n).toLocaleString();
+const fmtAcres = (n) => n == null ? '—' : Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function statCard(label, value, hint = '', cls = '') {
+  return `<div class="stat ${cls}"><div class="label">${label}</div><div class="value">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
 }
 
-function renderCountyBrief(b) {
-  const g = b.geography;
-  const a = b.active;
-  const alerts = a.nws_alerts || [];
-  const fires = a.wildfires_county || [];
-  const storms = a.nhc_storms_threatening || [];
+function countyTalkingPoints(b) {
+  const g = b.geography, s = b.summary, d = b.demographics || {};
+  const parts = [];
+  parts.push(`<b>${g.county} County, ${g.state}</b> is served by <b>${g.chapter}</b> (${g.region}, ${g.division}).`);
+  if (d.population) parts.push(`Population ${fmt(d.population)}, median HH income ${fmtMoney(d.median_hh_income)}, ${fmt(d.seniors_65_plus)} seniors 65+.`);
+  if (s.active_fire_count) parts.push(`<span style="color:var(--fire);font-weight:700;">${s.active_fire_count} active ${s.active_fire_count === 1 ? 'wildfire' : 'wildfires'} burning ${fmtAcres(s.active_fire_acres)} acres.</span>`);
+  if (s.recent_fema_count) parts.push(`${s.recent_fema_count} FEMA ${s.recent_fema_count === 1 ? 'declaration' : 'declarations'} in the past year${s.days_since_latest_fema != null ? ` (most recent ${s.days_since_latest_fema} day${s.days_since_latest_fema === 1 ? '' : 's'} ago)` : ''}.`);
+  if (s.active_alert_count) parts.push(`${s.active_alert_count} active NWS ${s.active_alert_count === 1 ? 'alert' : 'alerts'}.`);
+  if (!s.active_fire_count && !s.recent_fema_count && !s.active_alert_count) parts.push(`No active disaster events at this time.`);
+  return parts.join(' ');
+}
+
+function chapterTalkingPoints(b) {
+  const g = b.geography, s = b.summary;
+  const parts = [];
+  parts.push(`<b>${g.chapter}</b> covers ${s.county_count} ${s.county_count === 1 ? 'county' : 'counties'} (${fmt(s.total_population)} people) in ${g.region}.`);
+  if (s.active_fire_count) parts.push(`<span style="color:var(--fire);font-weight:700;">${s.active_fire_count} active ${s.active_fire_count === 1 ? 'wildfire' : 'wildfires'} burning ${fmtAcres(s.active_fire_acres)} acres.</span>`);
+  if (s.recent_fema_count) parts.push(`${s.recent_fema_count} recent FEMA declarations${s.days_since_latest_fema != null ? ` (most recent ${s.days_since_latest_fema}d ago)` : ''}.`);
+  if (s.active_alert_count) parts.push(`${s.active_alert_count} active NWS alerts.`);
+  return parts.join(' ');
+}
+
+function regionTalkingPoints(b) {
+  const g = b.geography, s = b.summary;
+  return `<b>${g.region}</b> — ${s.county_count} counties · ${s.chapter_count} chapters · ${fmt(s.total_population)} people · ${fmtAcres(s.total_sq_mi)} sq mi.` +
+    (s.active_fire_count ? ` <span style="color:var(--fire);font-weight:700;">${s.active_fire_count} active wildfires (${fmtAcres(s.active_fire_acres)} acres).</span>` : '') +
+    (s.recent_fema_count ? ` ${s.recent_fema_count} recent FEMA declarations.` : '') +
+    (s.active_alert_count ? ` ${s.active_alert_count} active NWS alerts.` : '');
+}
+
+function renderCounty(b) {
+  const g = b.geography, s = b.summary, d = b.demographics, hq = b.chapter_hq;
+  const fires = b.active.wildfires_county || [];
+  const alerts = b.active.nws_alerts || [];
   const fema = b.recent.fema_declarations || [];
 
-  const alertsHtml = alerts.length
-    ? alerts.map(x => `<div class="item"><div class="name">${x.event || 'Alert'}</div><div class="meta">${(x.area_desc || '').slice(0,120)}</div></div>`).join('')
-    : `<div class="empty">No active NWS alerts.</div>`;
-
   const firesHtml = fires.length
-    ? fires.map(f => f.error ? `<div class="empty">${f.error}</div>` : `
-        <div class="item">
-          <div class="name">${f.name || 'Unnamed fire'}</div>
-          <div class="meta">
-            ${f.acres ? `${f.acres} acres · ` : ''}${f.contained_pct != null ? `${f.contained_pct}% contained · ` : ''}${f.cause || ''}
-          </div>
-        </div>`).join('')
+    ? fires.map(f => `<div class="item"><div class="name">${f.name || 'Fire'} ${f.contained_pct >= 100 ? '<span class="pill">contained</span>' : '<span class="pill fire">active</span>'}</div><div class="meta">${fmtAcres(f.acres)} acres · ${f.contained_pct != null ? f.contained_pct+'% contained' : 'containment unknown'}${f.cause ? ' · '+f.cause : ''}</div></div>`).join('')
     : `<div class="empty">No active wildfires in this county.</div>`;
 
+  const alertsHtml = alerts.length
+    ? alerts.map(a => `<div class="item"><div class="name">${a.event}</div><div class="meta">${(a.headline||a.area_desc||'').slice(0,140)}</div></div>`).join('')
+    : `<div class="empty">No active NWS alerts.</div>`;
+
   const femaHtml = fema.length
-    ? fema.map(d => `
-        <div class="item">
-          <div class="name">DR-${d.disaster_number} · ${d.incident_type}</div>
-          <div class="meta">${d.title} · declared ${(d.declaration_date || '').slice(0,10)}</div>
-        </div>`).join('')
-    : `<div class="empty">No recent FEMA declarations affecting this county.</div>`;
+    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · declared ${(d.declaration_date||'').slice(0,10)}</div></div>`).join('')
+    : `<div class="empty">No recent FEMA declarations.</div>`;
 
-  const stormsHtml = storms.length
-    ? storms.map(s => s.error ? `<div class="empty">${s.error}</div>` : `
-        <div class="item">
-          <div class="name">${s.classification || '?'} ${s.name || ''}</div>
-          <div class="meta">${s.intensity_mph || '?'} mph · (${s.lat}, ${s.lon})</div>
-        </div>`).join('')
-    : `<div class="empty">No Atlantic/Gulf storms currently threatening ${g.state || 'this area'}.</div>`;
-
-  return `
-    <div class="card span-12">
-      <div class="kicker">Briefing</div>
-      <div class="big">${g.county} County, ${g.state || ''}</div>
-      <div class="meta">${g.chapter || '(no chapter)'} · ${g.region || ''} · ${g.division || ''}</div>
+  panel.innerHTML = `
+    <div class="head">
+      <div class="kicker">County Briefing</div>
+      <div class="title">${g.county} County, ${g.state}</div>
+      <div class="sub2">${g.chapter} · ${g.region} · ${g.division} · FEMA Region ${g.fema_region || '—'}</div>
     </div>
-    <div class="grid" style="margin-top:14px;">
-      ${card('Active NWS Alerts · ' + alerts.length, alertsHtml, 'span-6')}
-      ${card('Active Wildfires (County) · ' + fires.length, firesHtml, 'span-6')}
-      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-6')}
-      ${card('Tropical Threats', stormsHtml, 'span-6')}
+
+    <div class="talking">${countyTalkingPoints(b)}</div>
+
+    <div class="stats">
+      ${statCard('Population', fmt(d.population), `${fmt(d.households)} households · median age ${d.median_age || '—'}`)}
+      ${statCard('Median HH income', fmtMoney(d.median_hh_income), `Home value ${fmtMoney(d.median_home_value)}`)}
+      ${statCard('Active wildfires', s.active_fire_count, `${fmtAcres(s.active_fire_acres)} acres burning`, s.active_fire_count ? 'warn' : '')}
+      ${statCard('Recent FEMA', s.recent_fema_count, s.days_since_latest_fema != null ? `Latest ${s.days_since_latest_fema}d ago` : 'past year', s.recent_fema_count ? 'alert' : '')}
+    </div>
+
+    <div class="section">
+      <h3>Chapter HQ</h3>
+      <div class="hq">
+        <div class="label">${g.chapter}</div>
+        <div>${hq.address || ''}${hq.address_2 && hq.address_2 !== '0' ? ', '+hq.address_2 : ''}</div>
+        <div>${hq.city || ''}${hq.city && hq.zip ? ', ' : ''}${g.state} ${hq.zip || ''}</div>
+        <div>${hq.phone || ''} · ${hq.time_zone || ''} Time</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Active Wildfires (${fires.length})</h3>
+      ${firesHtml}
+    </div>
+    <div class="section">
+      <h3>Recent FEMA Declarations (${fema.length})</h3>
+      ${femaHtml}
+    </div>
+    <div class="section">
+      <h3>Active NWS Alerts (${alerts.length})</h3>
+      ${alertsHtml}
+    </div>
+    <div class="section">
+      <h3>Additional Demographics</h3>
+      <div class="item"><div class="name">Households</div><div class="meta">${fmt(d.households)} total · ${fmt(d.owner_occupied)} owner · ${fmt(d.renter_occupied)} renter · ${fmt(d.vacant)} vacant</div></div>
+      <div class="item"><div class="name">Age distribution</div><div class="meta">${fmt(d.youth_0_14)} youth · ${fmt(d.seniors_65_plus)} seniors 65+</div></div>
+      <div class="item"><div class="name">Density / Diversity</div><div class="meta">${fmt(d.pop_density_per_sqmi)} per sq mi · Diversity Index ${d.diversity_index || '—'}</div></div>
     </div>
   `;
 }
 
-function renderChapterBrief(b) {
-  const g = b.geography;
-  const a = b.active;
-  const fires = a.wildfires || [];
+function renderChapter(b) {
+  const g = b.geography, s = b.summary, hq = b.chapter_hq;
+  const fires = b.active.wildfires || [];
   const fema = b.recent.fema_declarations || [];
-
-  const alertsSummary = Object.entries(a.nws_alerts_by_event || {})
-    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ')
-    || `<div class="empty">No active NWS alerts in chapter.</div>`;
+  const alertsSummary = Object.entries(b.active.nws_alerts_by_event || {})
+    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ') || '<span class="empty">No alerts.</span>';
 
   const firesHtml = fires.length
-    ? fires.map(f => `<div class="item"><div class="name">${f.name} <span class="pill">${f.county}</span></div><div class="meta">${f.acres || '?'} acres · ${f.contained_pct != null ? f.contained_pct + '% contained' : 'containment unknown'} · ${f.cause || ''}</div></div>`).join('')
-    : `<div class="empty">No active wildfires in chapter.</div>`;
+    ? fires.slice(0, 30).map(f => `<div class="item"><div class="name">${f.name || 'Fire'} <span class="pill">${f.county}, ${(f.state||'').replace('US-','')}</span></div><div class="meta">${fmtAcres(f.acres)} acres · ${f.contained_pct != null ? f.contained_pct+'% contained' : 'containment unknown'}</div></div>`).join('')
+      + (fires.length > 30 ? `<div class="empty">…and ${fires.length - 30} more</div>` : '')
+    : `<div class="empty">No active wildfires.</div>`;
 
   const femaHtml = fema.length
-    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date || '').slice(0,10)}</div></div>`).join('')
-    : `<div class="empty">No recent FEMA declarations in chapter.</div>`;
+    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date||'').slice(0,10)}${d.affected_fips ? ' · '+d.affected_fips.length+' counties' : ''}</div></div>`).join('')
+    : `<div class="empty">No recent FEMA declarations.</div>`;
 
-  return `
-    <div class="card span-12">
+  panel.innerHTML = `
+    <div class="head">
       <div class="kicker">Chapter Briefing</div>
-      <div class="big">${g.chapter}</div>
-      <div class="meta">${g.counties.length} counties · ${g.region || ''} · ${g.division || ''}</div>
+      <div class="title">${g.chapter}</div>
+      <div class="sub2">${g.region} · ${g.division}</div>
     </div>
-    <div class="grid" style="margin-top:14px;">
-      <div class="card span-12">
-        <div class="kicker">Active NWS Alerts · ${a.nws_alert_count || 0}</div>
-        <div style="margin-top:8px;">${alertsSummary}</div>
+    <div class="talking">${chapterTalkingPoints(b)}</div>
+    <div class="stats">
+      ${statCard('Counties', s.county_count, `${fmtAcres(s.total_sq_mi)} sq mi`)}
+      ${statCard('Population', fmt(s.total_population))}
+      ${statCard('Active wildfires', s.active_fire_count, `${fmtAcres(s.active_fire_acres)} acres`, s.active_fire_count ? 'warn' : '')}
+      ${statCard('Recent FEMA', s.recent_fema_count, s.days_since_latest_fema != null ? `Latest ${s.days_since_latest_fema}d ago` : '', s.recent_fema_count ? 'alert' : '')}
+    </div>
+    <div class="section">
+      <h3>Chapter HQ</h3>
+      <div class="hq">
+        <div class="label">${g.chapter}</div>
+        <div>${hq.address || ''}${hq.address_2 && hq.address_2 !== '0' ? ', '+hq.address_2 : ''}</div>
+        <div>${hq.city || ''}${hq.city && hq.zip ? ', ' : ''}${(g.states||[])[0] || ''} ${hq.zip || ''}</div>
+        <div>${hq.phone || ''} · ${hq.time_zone || ''} Time</div>
       </div>
-      ${card('Active Wildfires in Chapter · ' + fires.length, firesHtml, 'span-8')}
-      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-4')}
     </div>
+    <div class="section"><h3>Active NWS Alerts · ${s.active_alert_count || 0}</h3>${alertsSummary}</div>
+    <div class="section"><h3>Active Wildfires (${fires.length})</h3>${firesHtml}</div>
+    <div class="section"><h3>Recent FEMA Declarations (${fema.length})</h3>${femaHtml}</div>
   `;
 }
 
-function renderRegionBrief(b) {
-  const g = b.geography;
-  const a = b.active;
-  const fires = a.wildfires_in_region || [];
+function renderRegion(b) {
+  const g = b.geography, s = b.summary;
+  const fires = b.active.wildfires_in_region || [];
   const fema = b.recent.fema_declarations || [];
-  const alertsSummary = Object.entries(a.nws_alerts_by_event || {})
-    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ')
-    || `<div class="empty">No active NWS alerts in region.</div>`;
+  const alertsSummary = Object.entries(b.active.nws_alerts_by_event || {})
+    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ') || '<span class="empty">No alerts.</span>';
+
+  const chaptersHtml = g.chapters.map(c => `<span class="pill">${c}</span>`).join(' ');
+
   const firesHtml = fires.length
-    ? fires.map(f => `<div class="item"><div class="name">${f.name} <span class="pill">${f.county}, ${f.state?.replace('US-','')||''}</span></div><div class="meta">${f.acres || '?'} acres · ${f.contained_pct != null ? f.contained_pct + '% contained' : 'containment unknown'}</div></div>`).join('')
+    ? fires.slice(0, 30).map(f => `<div class="item"><div class="name">${f.name || 'Fire'} <span class="pill">${f.county}, ${(f.state||'').replace('US-','')}</span></div><div class="meta">${fmtAcres(f.acres)} acres · ${f.contained_pct != null ? f.contained_pct+'% contained' : 'containment unknown'}</div></div>`).join('')
+      + (fires.length > 30 ? `<div class="empty">…and ${fires.length - 30} more</div>` : '')
     : `<div class="empty">No active wildfires in region.</div>`;
+
   const femaHtml = fema.length
-    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date || '').slice(0,10)}</div></div>`).join('')
-    : `<div class="empty">No recent FEMA declarations in region.</div>`;
-  return `
-    <div class="card span-12">
+    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date||'').slice(0,10)}${d.affected_fips ? ' · '+d.affected_fips.length+' counties' : ''}</div></div>`).join('')
+    : `<div class="empty">No recent FEMA declarations.</div>`;
+
+  panel.innerHTML = `
+    <div class="head">
       <div class="kicker">Region Briefing</div>
-      <div class="big">${g.region}</div>
-      <div class="meta">${g.county_count} counties · ${(g.chapters||[]).length} chapters · ${g.division || ''}</div>
+      <div class="title">${g.region}</div>
+      <div class="sub2">${g.division} · ${s.county_count} counties · ${s.chapter_count} chapters</div>
     </div>
-    <div class="grid" style="margin-top:14px;">
-      <div class="card span-12">
-        <div class="kicker">Active NWS Alerts · ${a.nws_alert_count || 0}</div>
-        <div style="margin-top:8px;">${alertsSummary}</div>
-      </div>
-      ${card('Active Wildfires in Region · ' + fires.length, firesHtml, 'span-8')}
-      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-4')}
+    <div class="talking">${regionTalkingPoints(b)}</div>
+    <div class="stats">
+      ${statCard('Counties', s.county_count, `${s.chapter_count} chapters`)}
+      ${statCard('Population', fmt(s.total_population), `${fmtAcres(s.total_sq_mi)} sq mi`)}
+      ${statCard('Active wildfires', s.active_fire_count, `${fmtAcres(s.active_fire_acres)} acres`, s.active_fire_count ? 'warn' : '')}
+      ${statCard('Recent FEMA', s.recent_fema_count, s.days_since_latest_fema != null ? `Latest ${s.days_since_latest_fema}d ago` : '', s.recent_fema_count ? 'alert' : '')}
     </div>
+    <div class="section"><h3>Chapters in region</h3>${chaptersHtml}</div>
+    <div class="section"><h3>Active NWS Alerts · ${s.active_alert_count || 0}</h3>${alertsSummary}</div>
+    <div class="section"><h3>Active Wildfires (${fires.length})</h3>${firesHtml}</div>
+    <div class="section"><h3>Recent FEMA Declarations (${fema.length})</h3>${femaHtml}</div>
   `;
 }
 
+// ---- ORCHESTRATION ----
 async function brief(q) {
-  status.textContent = 'Loading live data from FEMA, NWS, NIFC, NHC...';
-  out.innerHTML = '';
+  status.textContent = 'Loading live data from FEMA, NWS, NIFC, NHC, and ARC Geography…';
+  clearOverlays();
   try {
     const r = await fetch('/api/brief?' + q);
     const d = await r.json();
     if (d.error) { status.textContent = 'Error: ' + d.error; return; }
     status.textContent = '';
+
     const g = d.geography || {};
+
     if (g.county) {
-      out.innerHTML = renderCountyBrief(d);
+      renderCounty(d);
+      await drawCountyBoundary(g.fips_5);
+      drawFires(d.active.wildfires_county || []);
+      drawAlerts(d.active.nws_alerts || []);
     } else if (g.chapter) {
-      out.innerHTML = renderChapterBrief(d);
+      renderChapter(d);
+      await drawChapterBoundary(g.chapter);
+      await drawFemaCounties(d.map_layers?.fema_fips || []);
+      drawFires(d.active.wildfires || []);
+      drawAlerts(d.active.nws_alerts || []);
     } else if (g.region) {
-      out.innerHTML = renderRegionBrief(d);
+      renderRegion(d);
+      await drawRegionBoundary(g.region);
+      await drawChaptersInRegion(g.region);
+      await drawFemaCounties(d.map_layers?.fema_fips || []);
+      drawFires(d.active.wildfires_in_region || []);
+      drawAlerts(d.active.nws_alerts || []);
     } else {
-      out.innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
+      panel.innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
     }
   } catch (e) {
     status.textContent = 'Fetch failed: ' + e.message;
   }
 }
 
-$('state').addEventListener('change', async (e) => {
-  await loadCounties(e.target.value);
-});
-$('county').addEventListener('change', () => {
-  CURRENT_COUNTY = selectedCounty();
-});
-
-document.getElementById('f').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const c = selectedCounty();
-  if (!c) return;
+$('state').addEventListener('change', async (e) => { await loadCounties(e.target.value); });
+$('countyBtn').addEventListener('click', () => {
+  const c = selectedCounty(); if (!c) return;
   brief('fips=' + encodeURIComponent(c.fips));
 });
-document.getElementById('chapterBtn').addEventListener('click', () => {
-  const c = selectedCounty();
-  if (!c || !c.chapter) { status.textContent = 'No chapter recorded for that county.'; return; }
+$('chapterBtn').addEventListener('click', () => {
+  const c = selectedCounty(); if (!c || !c.chapter) { status.textContent = 'No chapter for that county.'; return; }
   brief('chapter=' + encodeURIComponent(c.chapter));
 });
-document.getElementById('regionBtn').addEventListener('click', () => {
-  const c = selectedCounty();
-  if (!c || !c.region) { status.textContent = 'No region recorded for that county.'; return; }
+$('regionBtn').addEventListener('click', () => {
+  const c = selectedCounty(); if (!c || !c.region) { status.textContent = 'No region for that county.'; return; }
   brief('region=' + encodeURIComponent(c.region));
 });
 

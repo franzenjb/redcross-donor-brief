@@ -1,10 +1,11 @@
 """Resolve any US county into the Red Cross briefing geography.
 
 Backed by `arc_geography` (the authoritative ARC Geography FeatureService).
-Every Hierarchy carries county → chapter → region → division for the full US.
+Every Hierarchy carries county → chapter → region → division for the full US,
+plus chapter HQ contact info and demographics.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import arc_geography as ag
 
@@ -18,6 +19,7 @@ class Hierarchy:
     chapter_name: str | None = None
     region_name: str | None = None
     division_name: str | None = None
+    row: dict = field(default_factory=dict)  # full ARC Geography row
 
 
 def _to_hierarchy(row: dict | None) -> Hierarchy | None:
@@ -31,6 +33,7 @@ def _to_hierarchy(row: dict | None) -> Hierarchy | None:
         chapter_name=row.get("Chapter"),
         region_name=row.get("Region"),
         division_name=row.get("Division"),
+        row=row,
     )
 
 
@@ -42,7 +45,6 @@ def from_fips(fips_5: str | int) -> Hierarchy | None:
     return _to_hierarchy(ag.by_fips(fips_5))
 
 
-# Group resolvers — return the counties belonging to a chapter/region/division
 def counties_in_chapter(chapter: str) -> list[Hierarchy]:
     return [h for h in (_to_hierarchy(r) for r in ag.counties_in_chapter(chapter)) if h]
 
