@@ -30,7 +30,7 @@
     background: var(--panel); color: var(--text); border: 1px solid var(--line);
     padding: 10px 14px; border-radius: 6px; font-size: 14px; font-family: inherit;
   }
-  select { min-width: 220px; }
+  select { min-width: 200px; }
   button { background: var(--accent); color: white; border: 1px solid var(--accent); cursor: pointer; font-weight: 600; }
   button:hover { filter: brightness(1.1); }
   button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
@@ -62,13 +62,15 @@
 <div class="wrap">
   <header>
     <h1><span class="accent">●</span> Red Cross Donor Briefing</h1>
-    <div class="sub">Situational awareness for gift officers · county → chapter → region</div>
+    <div class="sub">Situational awareness for gift officers · any US county → chapter → region → division</div>
   </header>
 
   <form id="f">
+    <label for="state">State:</label>
+    <select id="state"></select>
     <label for="county">County:</label>
     <select id="county"></select>
-    <button type="submit">Brief</button>
+    <button type="submit">Brief County</button>
     <button type="button" class="ghost" id="chapterBtn">Chapter view</button>
     <button type="button" class="ghost" id="regionBtn">Region view</button>
   </form>
@@ -82,16 +84,57 @@ const $ = (id) => document.getElementById(id);
 const out = $('out');
 const status = $('status');
 
-async function loadCounties() {
-  const r = await fetch('/api/counties');
-  const d = await r.json();
-  const sel = $('county');
-  d.ncfl_counties.forEach(c => {
+let INDEX = null;   // {states, divisions, regions, chapters, county_count}
+let COUNTIES_CACHE = {}; // state -> [{fips, county, state, chapter, region, division}]
+let CURRENT_COUNTY = null;
+
+async function loadIndex() {
+  const r = await fetch('/api/geography');
+  INDEX = await r.json();
+  const sel = $('state');
+  INDEX.states.forEach(s => {
     const o = document.createElement('option');
-    o.value = c; o.textContent = c;
+    o.value = s; o.textContent = s;
     sel.appendChild(o);
   });
-  sel.value = 'Putnam';
+  sel.value = 'FL';
+  await loadCounties('FL');
+}
+
+async function loadCounties(state) {
+  if (!COUNTIES_CACHE[state]) {
+    const r = await fetch('/api/geography?state=' + encodeURIComponent(state));
+    const d = await r.json();
+    COUNTIES_CACHE[state] = (d.counties || []).sort((a,b) => a.county.localeCompare(b.county));
+  }
+  const sel = $('county');
+  sel.innerHTML = '';
+  COUNTIES_CACHE[state].forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.fips; o.textContent = c.county;
+    o.dataset.chapter = c.chapter || '';
+    o.dataset.region = c.region || '';
+    sel.appendChild(o);
+  });
+  // Default: Putnam if FL, else first county
+  if (state === 'FL') {
+    const putnam = COUNTIES_CACHE[state].find(c => c.county === 'Putnam');
+    if (putnam) sel.value = putnam.fips;
+  }
+  CURRENT_COUNTY = selectedCounty();
+}
+
+function selectedCounty() {
+  const sel = $('county');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt) return null;
+  return {
+    fips: opt.value,
+    county: opt.textContent,
+    chapter: opt.dataset.chapter,
+    region: opt.dataset.region,
+    state: $('state').value,
+  };
 }
 
 function card(title, inner, cls = 'span-6') {
@@ -134,13 +177,13 @@ function renderCountyBrief(b) {
           <div class="name">${s.classification || '?'} ${s.name || ''}</div>
           <div class="meta">${s.intensity_mph || '?'} mph · (${s.lat}, ${s.lon})</div>
         </div>`).join('')
-    : `<div class="empty">No Atlantic/Gulf storms currently threatening Florida.</div>`;
+    : `<div class="empty">No Atlantic/Gulf storms currently threatening ${g.state || 'this area'}.</div>`;
 
   return `
     <div class="card span-12">
       <div class="kicker">Briefing</div>
-      <div class="big">${g.county} County</div>
-      <div class="meta">${g.chapter || '(no chapter)'} · ${g.region}</div>
+      <div class="big">${g.county} County, ${g.state || ''}</div>
+      <div class="meta">${g.chapter || '(no chapter)'} · ${g.region || ''} · ${g.division || ''}</div>
     </div>
     <div class="grid" style="margin-top:14px;">
       ${card('Active NWS Alerts · ' + alerts.length, alertsHtml, 'span-6')}
@@ -173,7 +216,7 @@ function renderChapterBrief(b) {
     <div class="card span-12">
       <div class="kicker">Chapter Briefing</div>
       <div class="big">${g.chapter}</div>
-      <div class="meta">${g.counties.length} counties · ${g.region}</div>
+      <div class="meta">${g.counties.length} counties · ${g.region || ''} · ${g.division || ''}</div>
     </div>
     <div class="grid" style="margin-top:14px;">
       <div class="card span-12">
@@ -181,6 +224,37 @@ function renderChapterBrief(b) {
         <div style="margin-top:8px;">${alertsSummary}</div>
       </div>
       ${card('Active Wildfires in Chapter · ' + fires.length, firesHtml, 'span-8')}
+      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-4')}
+    </div>
+  `;
+}
+
+function renderRegionBrief(b) {
+  const g = b.geography;
+  const a = b.active;
+  const fires = a.wildfires_in_region || [];
+  const fema = b.recent.fema_declarations || [];
+  const alertsSummary = Object.entries(a.nws_alerts_by_event || {})
+    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ')
+    || `<div class="empty">No active NWS alerts in region.</div>`;
+  const firesHtml = fires.length
+    ? fires.map(f => `<div class="item"><div class="name">${f.name} <span class="pill">${f.county}, ${f.state?.replace('US-','')||''}</span></div><div class="meta">${f.acres || '?'} acres · ${f.contained_pct != null ? f.contained_pct + '% contained' : 'containment unknown'}</div></div>`).join('')
+    : `<div class="empty">No active wildfires in region.</div>`;
+  const femaHtml = fema.length
+    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date || '').slice(0,10)}</div></div>`).join('')
+    : `<div class="empty">No recent FEMA declarations in region.</div>`;
+  return `
+    <div class="card span-12">
+      <div class="kicker">Region Briefing</div>
+      <div class="big">${g.region}</div>
+      <div class="meta">${g.county_count} counties · ${(g.chapters||[]).length} chapters · ${g.division || ''}</div>
+    </div>
+    <div class="grid" style="margin-top:14px;">
+      <div class="card span-12">
+        <div class="kicker">Active NWS Alerts · ${a.nws_alert_count || 0}</div>
+        <div style="margin-top:8px;">${alertsSummary}</div>
+      </div>
+      ${card('Active Wildfires in Region · ' + fires.length, firesHtml, 'span-8')}
       ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-4')}
     </div>
   `;
@@ -194,10 +268,13 @@ async function brief(q) {
     const d = await r.json();
     if (d.error) { status.textContent = 'Error: ' + d.error; return; }
     status.textContent = '';
-    if (d.geography.county) {
+    const g = d.geography || {};
+    if (g.county) {
       out.innerHTML = renderCountyBrief(d);
-    } else if (d.geography.chapter) {
+    } else if (g.chapter) {
       out.innerHTML = renderChapterBrief(d);
+    } else if (g.region) {
+      out.innerHTML = renderRegionBrief(d);
     } else {
       out.innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
     }
@@ -206,32 +283,34 @@ async function brief(q) {
   }
 }
 
-document.getElementById('f').addEventListener('submit', (e) => {
-  e.preventDefault();
-  brief('county=' + encodeURIComponent($('county').value));
+$('state').addEventListener('change', async (e) => {
+  await loadCounties(e.target.value);
 });
-document.getElementById('chapterBtn').addEventListener('click', () => {
-  const c = $('county').value;
-  // naive chapter lookup — could call an API instead
-  const chapters = {
-    'Orange': 'Central Florida and the U.S. Virgin Islands',
-    'Osceola': 'Central Florida and the U.S. Virgin Islands',
-    'Seminole': 'Central Florida and the U.S. Virgin Islands',
-    'Brevard': 'Central Florida and the U.S. Virgin Islands',
-    'Volusia': 'Central Florida and the U.S. Virgin Islands',
-    'Flagler': 'Central Florida and the U.S. Virgin Islands',
-    'Lake': 'Central Florida and the U.S. Virgin Islands',
-    'Sumter': 'Central Florida and the U.S. Virgin Islands',
-    'Clay': 'Northeast Florida', 'Duval': 'Northeast Florida', 'Nassau': 'Northeast Florida', 'St. Johns': 'Northeast Florida'
-  };
-  const ch = chapters[c] || 'North Florida';
-  brief('chapter=' + encodeURIComponent(ch));
-});
-document.getElementById('regionBtn').addEventListener('click', () => {
-  brief('region=1');
+$('county').addEventListener('change', () => {
+  CURRENT_COUNTY = selectedCounty();
 });
 
-loadCounties().then(() => brief('county=Putnam'));
+document.getElementById('f').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const c = selectedCounty();
+  if (!c) return;
+  brief('fips=' + encodeURIComponent(c.fips));
+});
+document.getElementById('chapterBtn').addEventListener('click', () => {
+  const c = selectedCounty();
+  if (!c || !c.chapter) { status.textContent = 'No chapter recorded for that county.'; return; }
+  brief('chapter=' + encodeURIComponent(c.chapter));
+});
+document.getElementById('regionBtn').addEventListener('click', () => {
+  const c = selectedCounty();
+  if (!c || !c.region) { status.textContent = 'No region recorded for that county.'; return; }
+  brief('region=' + encodeURIComponent(c.region));
+});
+
+loadIndex().then(() => {
+  const c = selectedCounty();
+  if (c) brief('fips=' + encodeURIComponent(c.fips));
+});
 </script>
 </body>
 </html>

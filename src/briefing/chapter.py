@@ -1,39 +1,64 @@
-"""Assemble a briefing for a Red Cross chapter (aggregation across its counties)."""
+"""Assemble a briefing for a Red Cross chapter (aggregation across its counties).
+
+Chapter resolution comes from the authoritative ARC Geography layer — works for
+any of the ~226 US Red Cross chapters.
+"""
 from __future__ import annotations
 from datetime import datetime, timezone
 
-from ..geography import fl_counties, ncfl
+from ..geography import arc_geography as ag
 from ..sources import nws, fema, nifc, nhc
 
 
 def build(chapter_name: str, lookback_days_fema: int = 365) -> dict | None:
-    counties = ncfl.NCFL_CHAPTERS.get(chapter_name)
+    counties = ag.counties_in_chapter(chapter_name)
     if not counties:
         return None
 
-    # Build FIPS / SAME sets for the chapter's counties
-    fips5 = []
-    same = []
-    for cname in counties:
-        hit = fl_counties.find(cname)
-        if hit:
-            f3, _ = hit
-            fips5.append(fl_counties.full_fips(f3))
-            same.append(fl_counties.same_code(f3))
+    fips5 = [c["FIPS"] for c in counties]
+    same = [c["same"] for c in counties]
+    states = sorted({c["State"] for c in counties if c.get("State")})
+    region_name = counties[0].get("Region")
+    division_name = counties[0].get("Division")
 
-    # Active alerts touching any county in chapter
-    alerts = nws.fetch_counties(same)
-    # Group alerts by event type
+    # Collect NWS alerts across every state the chapter touches
+    alerts: list[dict] = []
+    same_set = set(same)
+    for st in states:
+        try:
+            all_st = nws.fetch_state(st)
+            for a in all_st:
+                if set(a.get("same", []) or []) & same_set:
+                    alerts.append(a)
+        except Exception:
+            pass
     alerts_by_event: dict[str, int] = {}
     for a in alerts:
         ev = a.get("event") or "Unknown"
         alerts_by_event[ev] = alerts_by_event.get(ev, 0) + 1
 
-    # Active wildfires anywhere in chapter
-    fires = nifc.fetch_counties(fips5)
+    # Active wildfires in any county in the chapter
+    fires: list[dict] = []
+    for st in states:
+        try:
+            all_st = nifc.fetch_state(f"US-{st}")
+            fips_set = set(fips5)
+            fires.extend(f for f in all_st if f.get("county_fips") in fips_set)
+        except Exception:
+            pass
 
-    # FEMA declarations affecting any county in chapter
-    decs = fema.fetch_counties(fips5, lookback_days=lookback_days_fema)
+    # FEMA declarations across states the chapter covers
+    decs: list[dict] = []
+    fips_set = set(fips5)
+    for st in states:
+        try:
+            all_st = fema.fetch_state(st, lookback_days_fema)
+            for d in all_st:
+                full = f"{d.get('fipsStateCode') or ''}{d.get('fipsCountyCode') or ''}".zfill(5)
+                if full in fips_set:
+                    decs.append(d)
+        except Exception:
+            pass
     fema_unique: dict[int, dict] = {}
     for d in decs:
         n = d.get("disasterNumber")
@@ -47,17 +72,19 @@ def build(chapter_name: str, lookback_days_fema: int = 365) -> dict | None:
                 "incident_end": d.get("incidentEndDate"),
             }
 
-    # NHC storms threatening FL (region-scope but surfaced here too)
+    # NHC storms threatening any state the chapter covers
     try:
-        storms = [s for s in nhc.fetch_active() if nhc.threatens_florida(s)]
+        storms = [s for s in nhc.fetch_active() if nhc.threatens_any(s, states)]
     except Exception as e:
         storms = [{"error": str(e)}]
 
     return {
         "geography": {
             "chapter": chapter_name,
-            "counties": counties,
-            "region": ncfl.REGION_NAME,
+            "counties": [f"{c['County']}, {c['State']}" for c in counties],
+            "states": states,
+            "region": region_name,
+            "division": division_name,
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "active": {

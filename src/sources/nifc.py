@@ -52,10 +52,19 @@ def fetch_state(state: str = "US-FL") -> list[dict]:
     return [_normalize(f["attributes"]) for f in data.get("features", [])]
 
 
-def fetch_counties(fips_5digit: Iterable[str]) -> list[dict]:
-    """Active wildfires whose POOFips matches any given 5-digit FIPS."""
-    wanted = set(fips_5digit)
-    all_fires = fetch_state("US-FL")
+def fetch_counties(fips_5digit: Iterable[str], state: str | None = None) -> list[dict]:
+    """Active wildfires whose POOFips matches any given 5-digit FIPS.
+
+    `state` = 2-letter USPS (e.g. 'FL'). If omitted, derived from first FIPS.
+    """
+    wanted = set(str(f).zfill(5) for f in fips_5digit)
+    if state is None and wanted:
+        from ..geography import arc_geography as ag
+        first = next(iter(wanted))
+        row = ag.by_fips(first)
+        if row:
+            state = row.get("State")
+    all_fires = fetch_state(f"US-{(state or 'FL').upper()}")
     return [f for f in all_fires if f.get("county_fips") in wanted]
 
 

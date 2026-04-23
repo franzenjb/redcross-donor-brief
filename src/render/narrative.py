@@ -7,10 +7,12 @@ from __future__ import annotations
 
 def render(briefing: dict) -> str:
     g = briefing["geography"]
+    state = g.get("state") or ""
     lines: list[str] = []
-    lines.append(f"=== {g['county']} County, FL ===")
-    lines.append(f"Chapter: {g['chapter'] or '(not in NCFL)'}")
-    lines.append(f"Region: {g['region']}")
+    lines.append(f"=== {g['county']} County, {state} ===")
+    lines.append(f"Chapter: {g['chapter'] or '(unknown)'}")
+    lines.append(f"Region: {g.get('region') or '(unknown)'}")
+    lines.append(f"Division: {g.get('division') or '(unknown)'}")
     lines.append(f"Generated: {briefing['generated_at']}")
     lines.append("")
 
@@ -26,7 +28,7 @@ def render(briefing: dict) -> str:
 
     # NHC
     storms = briefing.get("active", {}).get("nhc_storms_threatening", [])
-    lines.append(f"ACTIVE STORMS THREATENING FL ({len(storms)}):")
+    lines.append(f"ACTIVE STORMS THREATENING {state or 'AREA'} ({len(storms)}):")
     if storms:
         for s in storms:
             if "error" in s:
