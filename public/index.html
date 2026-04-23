@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Red Cross Donor Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #141821;
+    --line: #222733;
+    --text: #e7ecf3;
+    --muted: #8a95a8;
+    --accent: #ee1e2b;
+    --warn: #ffb547;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 15px; line-height: 1.55; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .accent { color: var(--accent); }
+  form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 20px 0 28px; }
+  label { color: var(--muted); font-size: 13px; margin-right: 4px; }
+  select, button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    padding: 10px 14px; border-radius: 6px; font-size: 14px; font-family: inherit;
+  }
+  select { min-width: 220px; }
+  button { background: var(--accent); color: white; border: 1px solid var(--accent); cursor: pointer; font-weight: 600; }
+  button:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .card.span-4 { grid-column: span 4; }
+  .card.span-6 { grid-column: span 6; }
+  .card.span-8 { grid-column: span 8; }
+  .card.span-12 { grid-column: span 12; }
+  @media (max-width: 800px) {
+    .card.span-4, .card.span-6, .card.span-8 { grid-column: span 12; }
+  }
+  .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .big { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .item { padding: 10px 0; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: none; padding-top: 4px; }
+  .item .name { font-weight: 600; }
+  .item .meta { color: var(--muted); font-size: 13px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; background: #20242f; color: var(--muted); margin-right: 6px; }
+  .pill.warn { background: rgba(255,181,71,0.15); color: var(--warn); }
+  .pill.danger { background: rgba(238,30,43,0.15); color: var(--accent); }
+  pre { background: #0a0c10; border: 1px solid var(--line); padding: 10px; border-radius: 6px; overflow: auto; font-size: 12px; color: var(--muted); }
+  .empty { color: var(--muted); font-style: italic; font-size: 13px; padding: 8px 0; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+  .spin { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">●</span> Red Cross Donor Briefing</h1>
+    <div class="sub">Situational awareness for gift officers · county → chapter → region</div>
+  </header>
+
+  <form id="f">
+    <label for="county">County:</label>
+    <select id="county"></select>
+    <button type="submit">Brief</button>
+    <button type="button" class="ghost" id="chapterBtn">Chapter view</button>
+    <button type="button" class="ghost" id="regionBtn">Region view</button>
+  </form>
+
+  <div id="status" class="spin"></div>
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $('out');
+const status = $('status');
+
+async function loadCounties() {
+  const r = await fetch('/api/counties');
+  const d = await r.json();
+  const sel = $('county');
+  d.ncfl_counties.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    sel.appendChild(o);
+  });
+  sel.value = 'Putnam';
+}
+
+function card(title, inner, cls = 'span-6') {
+  return `<div class="card ${cls}"><div class="kicker">${title}</div>${inner}</div>`;
+}
+
+function renderCountyBrief(b) {
+  const g = b.geography;
+  const a = b.active;
+  const alerts = a.nws_alerts || [];
+  const fires = a.wildfires_county || [];
+  const storms = a.nhc_storms_threatening || [];
+  const fema = b.recent.fema_declarations || [];
+
+  const alertsHtml = alerts.length
+    ? alerts.map(x => `<div class="item"><div class="name">${x.event || 'Alert'}</div><div class="meta">${(x.area_desc || '').slice(0,120)}</div></div>`).join('')
+    : `<div class="empty">No active NWS alerts.</div>`;
+
+  const firesHtml = fires.length
+    ? fires.map(f => f.error ? `<div class="empty">${f.error}</div>` : `
+        <div class="item">
+          <div class="name">${f.name || 'Unnamed fire'}</div>
+          <div class="meta">
+            ${f.acres ? `${f.acres} acres · ` : ''}${f.contained_pct != null ? `${f.contained_pct}% contained · ` : ''}${f.cause || ''}
+          </div>
+        </div>`).join('')
+    : `<div class="empty">No active wildfires in this county.</div>`;
+
+  const femaHtml = fema.length
+    ? fema.map(d => `
+        <div class="item">
+          <div class="name">DR-${d.disaster_number} · ${d.incident_type}</div>
+          <div class="meta">${d.title} · declared ${(d.declaration_date || '').slice(0,10)}</div>
+        </div>`).join('')
+    : `<div class="empty">No recent FEMA declarations affecting this county.</div>`;
+
+  const stormsHtml = storms.length
+    ? storms.map(s => s.error ? `<div class="empty">${s.error}</div>` : `
+        <div class="item">
+          <div class="name">${s.classification || '?'} ${s.name || ''}</div>
+          <div class="meta">${s.intensity_mph || '?'} mph · (${s.lat}, ${s.lon})</div>
+        </div>`).join('')
+    : `<div class="empty">No Atlantic/Gulf storms currently threatening Florida.</div>`;
+
+  return `
+    <div class="card span-12">
+      <div class="kicker">Briefing</div>
+      <div class="big">${g.county} County</div>
+      <div class="meta">${g.chapter || '(no chapter)'} · ${g.region}</div>
+    </div>
+    <div class="grid" style="margin-top:14px;">
+      ${card('Active NWS Alerts · ' + alerts.length, alertsHtml, 'span-6')}
+      ${card('Active Wildfires (County) · ' + fires.length, firesHtml, 'span-6')}
+      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-6')}
+      ${card('Tropical Threats', stormsHtml, 'span-6')}
+    </div>
+  `;
+}
+
+function renderChapterBrief(b) {
+  const g = b.geography;
+  const a = b.active;
+  const fires = a.wildfires || [];
+  const fema = b.recent.fema_declarations || [];
+
+  const alertsSummary = Object.entries(a.nws_alerts_by_event || {})
+    .map(([k,v]) => `<span class="pill warn">${v}× ${k}</span>`).join(' ')
+    || `<div class="empty">No active NWS alerts in chapter.</div>`;
+
+  const firesHtml = fires.length
+    ? fires.map(f => `<div class="item"><div class="name">${f.name} <span class="pill">${f.county}</span></div><div class="meta">${f.acres || '?'} acres · ${f.contained_pct != null ? f.contained_pct + '% contained' : 'containment unknown'} · ${f.cause || ''}</div></div>`).join('')
+    : `<div class="empty">No active wildfires in chapter.</div>`;
+
+  const femaHtml = fema.length
+    ? fema.map(d => `<div class="item"><div class="name">DR-${d.disaster_number} · ${d.incident_type}</div><div class="meta">${d.title} · ${(d.declaration_date || '').slice(0,10)}</div></div>`).join('')
+    : `<div class="empty">No recent FEMA declarations in chapter.</div>`;
+
+  return `
+    <div class="card span-12">
+      <div class="kicker">Chapter Briefing</div>
+      <div class="big">${g.chapter}</div>
+      <div class="meta">${g.counties.length} counties · ${g.region}</div>
+    </div>
+    <div class="grid" style="margin-top:14px;">
+      <div class="card span-12">
+        <div class="kicker">Active NWS Alerts · ${a.nws_alert_count || 0}</div>
+        <div style="margin-top:8px;">${alertsSummary}</div>
+      </div>
+      ${card('Active Wildfires in Chapter · ' + fires.length, firesHtml, 'span-8')}
+      ${card('Recent FEMA Declarations · ' + fema.length, femaHtml, 'span-4')}
+    </div>
+  `;
+}
+
+async function brief(q) {
+  status.textContent = 'Loading live data from FEMA, NWS, NIFC, NHC...';
+  out.innerHTML = '';
+  try {
+    const r = await fetch('/api/brief?' + q);
+    const d = await r.json();
+    if (d.error) { status.textContent = 'Error: ' + d.error; return; }
+    status.textContent = '';
+    if (d.geography.county) {
+      out.innerHTML = renderCountyBrief(d);
+    } else if (d.geography.chapter) {
+      out.innerHTML = renderChapterBrief(d);
+    } else {
+      out.innerHTML = `<pre>${JSON.stringify(d, null, 2)}</pre>`;
+    }
+  } catch (e) {
+    status.textContent = 'Fetch failed: ' + e.message;
+  }
+}
+
+document.getElementById('f').addEventListener('submit', (e) => {
+  e.preventDefault();
+  brief('county=' + encodeURIComponent($('county').value));
+});
+document.getElementById('chapterBtn').addEventListener('click', () => {
+  const c = $('county').value;
+  // naive chapter lookup — could call an API instead
+  const chapters = {
+    'Orange': 'Central Florida and the U.S. Virgin Islands',
+    'Osceola': 'Central Florida and the U.S. Virgin Islands',
+    'Seminole': 'Central Florida and the U.S. Virgin Islands',
+    'Brevard': 'Central Florida and the U.S. Virgin Islands',
+    'Volusia': 'Central Florida and the U.S. Virgin Islands',
+    'Flagler': 'Central Florida and the U.S. Virgin Islands',
+    'Lake': 'Central Florida and the U.S. Virgin Islands',
+    'Sumter': 'Central Florida and the U.S. Virgin Islands',
+    'Clay': 'Northeast Florida', 'Duval': 'Northeast Florida', 'Nassau': 'Northeast Florida', 'St. Johns': 'Northeast Florida'
+  };
+  const ch = chapters[c] || 'North Florida';
+  brief('chapter=' + encodeURIComponent(ch));
+});
+document.getElementById('regionBtn').addEventListener('click', () => {
+  brief('region=1');
+});
+
+loadCounties().then(() => brief('county=Putnam'));
+</script>
+</body>
+</html>

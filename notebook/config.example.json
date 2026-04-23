@@ -1,0 +1,43 @@
+{
+  "_comment": "Copy to config.json and fill in. config.json is gitignored. In the AGOL Notebook, paste these values into the Config cell instead of using this file.",
+
+  "agol_org_url": "https://arc-nhq-gis.maps.arcgis.com",
+
+  "donor_layer_item_id": "TBD",
+  "donor_layer_fields": {
+    "name": "donor_name",
+    "email": "email",
+    "segment": "segment_tag",
+    "giving_level": "giving_level",
+    "last_gift_date": "last_gift_date",
+    "donor_id": "donor_id"
+  },
+
+  "calls_layer_item_id": "TBD",
+  "calls_layer_fields": {
+    "incident_id": "incident_id",
+    "incident_type": "incident_type",
+    "dispatch_status": "dispatch_status",
+    "dispatch_status_confirmed_values": ["Dispatched", "Completed", "Responded"],
+    "created_date": "created_date",
+    "families_served": "families_served",
+    "people_served": "people_served",
+    "kids_served": "kids_served",
+    "assistance_amount": "assistance_amount",
+    "narrative": "narrative"
+  },
+
+  "chapter_boundary_item_id": "TBD",
+
+  "pending_drafts_table_item_id": "CREATED_BY_NOTEBOOK",
+  "touch_history_table_item_id": "CREATED_BY_NOTEBOOK",
+
+  "rules": {
+    "lookback_hours": 24,
+    "proximity_miles": 2.0,
+    "fatigue_days": 30,
+    "max_donors_per_incident": 25,
+    "exclude_incident_types": ["Fatality", "Multi-Fatality"],
+    "min_incident_families_served": 1
+  }
+}
