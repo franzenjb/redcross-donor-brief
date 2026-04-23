@@ -11,3 +11,4 @@ venv/
 .vercel/
 .next/
 node_modules/
+.vercel
